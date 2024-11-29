@@ -60,6 +60,9 @@ fn CONTACT_HANDLE_2() -> ByteArray {
 fn VALID_ADDRESS_1() -> ContractAddress {
     contract_address_const::<FundManagerConstants::VALID_ADDRESS_1>()
 }
+fn VALID_ADDRESS_2() -> ContractAddress {
+    contract_address_const::<FundManagerConstants::VALID_ADDRESS_2>()
+}
 fn _setup_() -> ContractAddress {
     let contract = declare("Fund").unwrap();
     let mut calldata: Array<felt252> = array![];
@@ -124,15 +127,31 @@ fn test_set_reason() {
 }
 
 #[test]
-fn test_set_goal() {
+fn test_set_goal_by_admins() {
     let contract_address = _setup_();
     let dispatcher = IFundDispatcher { contract_address };
-    let goal = dispatcher.getGoal();
-    assert(goal == GOAL(), 'Invalid goal');
-    start_cheat_caller_address_global(FUND_MANAGER());
+
+    let initial_goal = dispatcher.getGoal();
+    assert(initial_goal == GOAL(), 'Initial goal is incorrect');
+
+    start_cheat_caller_address_global(VALID_ADDRESS_1());
     dispatcher.setGoal(123);
-    let new_goal = dispatcher.getGoal();
-    assert(new_goal == 123, 'Set goal method not working')
+    let updated_goal_1 = dispatcher.getGoal();
+    assert(updated_goal_1 == 123, 'Failed to update goal');
+
+    start_cheat_caller_address_global(VALID_ADDRESS_2());
+    dispatcher.setGoal(456);
+    let updated_goal_2 = dispatcher.getGoal();
+    assert(updated_goal_2 == 456, 'Failed to update goal');
+}
+
+#[test]
+#[should_panic(expected: ("You are not the fund manager",))]
+fn test_set_goal_unauthorized() {
+    let contract_address = _setup_();
+    let dispatcher = IFundDispatcher { contract_address };
+    // Change the goal without being the fund manager
+    dispatcher.setGoal(22);
 }
 
 #[test]
@@ -194,16 +213,6 @@ fn test_receive_vote_unsuccessful_double_vote() {
 //     let state = dispatcher.getState();
 //     assert(state == 3, 'State should be close');
 // }
-
-#[test]
-#[should_panic(expected: ("You are not the fund manager",))]
-fn test_set_goal_unauthorized() {
-    let contract_address = _setup_();
-    let dispatcher = IFundDispatcher { contract_address };
-    // Change the goal without being the fund manager
-    dispatcher.setGoal(22);
-}
-
 
 #[test]
 fn test_new_vote_received_event_emitted_successful() {
